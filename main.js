@@ -139,3 +139,15 @@ function updateSize() {
     window.innerWidth / window.innerHeight;
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
+const hintText = document.getElementById('hint-text');
+
+// hide the "Click To Add Flowers" text after 3 seconds
+setTimeout(() => {
+  if (hintText) {
+    hintText.style.opacity = '0';
+    hintText.style.transition = 'opacity 0.5s ease';
+    // or to completely remove:
+    // hintText.style.display = 'none';
+  }
+}, 2000);
