@@ -3,10 +3,13 @@ import * as THREE from 'https://cdn.skypack.dev/three@0.133.1/build/three.module
 const canvasEl = document.querySelector('#canvas');
 const cleanBtn = document.querySelector('.clean-btn');
 
+// ----- FLOWER / SHADER STATE -----
+
 const pointer = {
   x: 0.66,
   y: 0.3,
   clicked: true,
+  vanishCanvas: false,
 };
 
 // small auto-click for preview
@@ -48,6 +51,14 @@ render();
 let isTouchScreen = false;
 
 window.addEventListener('click', (e) => {
+  if (
+    e.target.closest('#text-layer') ||
+    e.target.closest('.text-box') ||
+    e.target.closest('.text-toolbar')
+  ) {
+    return;
+  }
+
   if (!isTouchScreen) {
     pointer.x = e.pageX / window.innerWidth;
     pointer.y = e.pageY / window.innerHeight;
@@ -56,6 +67,15 @@ window.addEventListener('click', (e) => {
 });
 
 window.addEventListener('touchstart', (e) => {
+  const target = e.target;
+  if (
+    target.closest('#text-layer') ||
+    target.closest('.text-box') ||
+    target.closest('.text-toolbar')
+  ) {
+    return;
+  }
+
   isTouchScreen = true;
   pointer.x = e.targetTouches[0].pageX / window.innerWidth;
   pointer.y = e.targetTouches[0].pageY / window.innerHeight;
@@ -135,19 +155,77 @@ function render() {
 
 function updateSize() {
   if (!shaderMaterial) return;
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
   shaderMaterial.uniforms.u_ratio.value =
     window.innerWidth / window.innerHeight;
-  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  renderTargets.forEach((rt) => rt.dispose());
+  renderTargets = [
+    new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight),
+    new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight),
+  ];
 }
 
+// hint text fade-out
 const hintText = document.getElementById('hint-text');
-
-// hide the "Click To Add Flowers" text after 3 seconds
 setTimeout(() => {
   if (hintText) {
-    hintText.style.opacity = '0';
     hintText.style.transition = 'opacity 0.5s ease';
-    // or to completely remove:
-    // hintText.style.display = 'none';
+    hintText.style.opacity = '0';
   }
 }, 2000);
+
+// ----- PAINT-STYLE TEXT BOXES -----
+
+const textLayer = document.getElementById('text-layer');
+const addTextBtn = document.getElementById('add-text-btn');
+
+let textDragState = {
+  dragging: false,
+  target: null,
+  offsetX: 0,
+  offsetY: 0,
+};
+
+addTextBtn.addEventListener('click', () => {
+  createTextBox();
+});
+
+function createTextBox() {
+  const box = document.createElement('div');
+  box.className = 'text-box';
+  box.contentEditable = 'true';
+
+  const startX = window.innerWidth / 2 - 40;
+  const startY = window.innerHeight / 2 - 12;
+  box.style.left = startX + 'px';
+  box.style.top = startY + 'px';
+
+  textLayer.appendChild(box);
+  box.focus();
+
+  // allow drag when mouse is down on the box background
+  box.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    textDragState.dragging = true;
+    textDragState.target = box;
+    const rect = box.getBoundingClientRect();
+    textDragState.offsetX = e.clientX - rect.left;
+    textDragState.offsetY = e.clientY - rect.top;
+  });
+}
+
+window.addEventListener('mousemove', (e) => {
+  if (!textDragState.dragging || !textDragState.target) return;
+  const box = textDragState.target;
+  const x = e.clientX - textDragState.offsetX;
+  const y = e.clientY - textDragState.offsetY;
+  box.style.left = x + 'px';
+  box.style.top = y + 'px';
+});
+
+window.addEventListener('mouseup', () => {
+  textDragState.dragging = false;
+  textDragState.target = null;
+});
